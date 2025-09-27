@@ -1,0 +1,207 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Medical Chatbot (Gemini)</title>
+    <style>
+        /* Reset & Base */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #e8f0ff, #f9fcff);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Chat container */
+        .chat {
+            width: 720px;
+            max-width: 95%;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 85vh;
+            animation: fadeIn 0.6s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Messages area */
+        .messages {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .msg {
+            margin: 12px 0;
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 75%;
+            font-size: 15px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .user {
+            margin-left: auto;
+            background: #d1ecff;
+            color: #034078;
+            border: 1px solid #a8ddff;
+        }
+
+        .bot {
+            margin-right: auto;
+            background: #fff6e5;
+            color: #5a4200;
+            border: 1px solid #ffe1a8;
+        }
+
+        /* Input bar */
+        .input {
+            display: flex;
+            padding: 14px;
+            gap: 10px;
+            border-top: 1px solid #e0e0e0;
+            background: #fafafa;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            font-size: 15px;
+            transition: border 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border: 1px solid #2b7cff;
+            box-shadow: 0 0 0 3px rgba(43, 124, 255, 0.2);
+        }
+
+        button {
+            padding: 12px 18px;
+            border-radius: 10px;
+            border: none;
+            background: #2b7cff;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.25s, transform 0.1s;
+        }
+
+        button:hover {
+            background: #1d63d5;
+        }
+
+        button:active {
+            transform: scale(0.96);
+        }
+
+        /* Scrollbar styling */
+        .messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .messages::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat">
+        <div class="messages" id="messages"></div>
+        <div class="input">
+            <input id="input" type="text" placeholder="💬 Describe symptoms or ask a health question..." />
+            <button id="send">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const messagesEl = document.getElementById('messages');
+        const input = document.getElementById('input');
+        const send = document.getElementById('send');
+
+        const history = [];
+
+        function appendText(text, who = 'bot') {
+            const div = document.createElement('div');
+            div.className = 'msg ' + (who === 'user' ? 'user' : 'bot');
+            div.textContent = text;
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const text = input.value.trim();
+            if (!text) return;
+            appendText(text, 'user');
+            history.push({ role: 'user', text });
+            input.value = '';
+            appendText('🤖 ...thinking', 'bot');
+            try {
+                const resp = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text, history })
+                });
+                const data = await resp.json();
+                messagesEl.lastChild.remove();
+                if (data.reply) {
+                    appendText(data.reply, 'bot');
+                    history.push({ role: 'assistant', text: data.reply });
+                } else {
+                    appendText('⚠️ No reply from server', 'bot');
+                }
+            } catch (err) {
+                messagesEl.lastChild.remove();
+                appendText('❌ Network error: ' + err.message, 'bot');
+            }
+        }
+
+        send.addEventListener('click', sendMessage);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+        input.focus();
+    </script>
+</body>
+
+</html>
